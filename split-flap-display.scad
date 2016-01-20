@@ -13,7 +13,7 @@ outerMargin = 2;
 segments = 10;
 
 // Disk Stubbles
-stubbleHeight = 4;
+stubbleHeight = 3;
 stubbleRadius = 0.6;
 stubbleHoleAngle = 360/segments/3;
 
@@ -69,77 +69,129 @@ module disk(lower) {
 plateTolerance = 2;
 plateWidth = axisHeight - plateTolerance;
 plateHeight = plateWidth;
-plateThickness = 1.2;
+plateThickness = 1;
 plateStubbleOffset = 5.2;
-
+//plateStubbleRadius = holeRadius -0.1; //-0.2
+plateStubbleRadius = plateThickness;
 plateStubbleLength = axisHeight + diskHeight*2 + 2;
+
+module basePlate() {
+    translate([0,-plateHeight/2 + plateStubbleOffset,0])
+        cube([plateWidth, plateHeight, plateThickness], center = true);
+    rotate(a=90,v=[0,1,0])
+        translate([0,0,-plateStubbleLength/2])
+            //cylinder(h = plateStubbleLength, r = plateStubbleRadius);
+            translate([0,0,plateStubbleLength/2])
+                cube([plateThickness,plateThickness,plateStubbleLength], center = true);
+}
+
+
 
 module plate(element, angle) 
     rotate(a=360/segments*element, v=[0, 0, 1])
         translate([diskRadius-outerMargin,0,plateWidth/2 + diskHeight + plateTolerance/2])
             rotate(a=angle,v=[0,0,1])
-                rotate(a=90,v=[0,1,0]) {
-                    translate([0,-plateHeight/2 + plateStubbleOffset,0])
-                        cube([plateWidth, plateHeight, plateThickness], center = true);
-                    rotate(a=90,v=[0,1,0])
-                        translate([0,0,-plateStubbleLength/2])
-                            cylinder(h = plateStubbleLength, r = holeRadius-0.2);
-                }
-            
+                rotate(a=90,v=[0,1,0])
+                    basePlate();
+ 
+             
+//basePlate();
 
-
-
-// Split Flap
-rotate(a=-11,v=[0,1,0]) {
-    rotate(a=90,v=[1,0,0]) 
-        translate([0,0,-(diskHeight+axisHeight/2)]) {
-            // LOWERT PART
-            %disk(lower = true);
-
-            // UPPER PART
-            %translate([0,0,diskHeight*2 + axisHeight])
-                mirror([0,0,1]) {
-                    disk(lower = false);
-                }
-
-            // AXIS
-            if(simpleAxisHole)
-                translate([0, 0, -10])
-                    #cylinder(h=diskHeight*2 + 20 + axisHeight, r=axisRadius);
-
-            
-            plate(element = 0, angle = 25);
-            plate(element = 1, angle = 25);
-            plate(element = 2, angle = 25);
-            plate(element = 3, angle = 25);
-            plate(element = 4, angle = 25);
-            plate(element = 5, angle = 168);
-            plate(element = 6, angle = 121.5);
-            plate(element = 7, angle = 68);
-            plate(element = 8, angle = 42);
-            plate(element = 9, angle = 25);
-            
-        }
-}
-
-boxDeepth = axisHeight*2;
-boxTolerance = plateTolerance;
+boxDeepth = axisHeight*1.8;
+boxTolerance = 2;
 boxThickness = 2;
 boxHeight = plateHeight*2+20;
 
 boxWidth = axisHeight + 2*diskHeight + boxTolerance + 2*boxThickness;
 
 boxXcenter = 10;
-%union(){
-    translate([boxXcenter, 0, boxHeight/2])
-        cube([boxDeepth, boxWidth, boxThickness], center = true);
 
-    translate([boxXcenter, 0, -boxHeight/2])
-        cube([boxDeepth, boxWidth, boxThickness], center = true);
+frontHoleHeight = plateHeight*2;
+frontHoleWidth = plateWidth + plateTolerance;
+frontHoleOff = 2;
 
-    translate([boxXcenter, boxWidth/2, 0])
-        cube([boxDeepth, boxThickness, boxHeight + boxThickness], center = true);
 
-    translate([boxXcenter, -boxWidth/2, 0])
-        cube([boxDeepth, boxThickness, boxHeight + boxThickness], center = true);
+module box(left = true) {
+    union(){
+        if (left) {
+            // LEFT WALL
+            translate([boxXcenter, (boxWidth + boxThickness)/2, 0])
+                cube([boxDeepth, boxThickness, boxHeight + boxThickness], center = true);
+            // TOP 
+            translate([boxXcenter, 0, boxHeight/2])
+                cube([boxDeepth, boxWidth, boxThickness], center = true);
+            // BOTTOM 
+            translate([boxXcenter, 0, -boxHeight/2])
+                cube([boxDeepth, boxWidth, boxThickness], center = true);
+            // BACK 
+            translate([(boxDeepth + boxThickness)/2 + boxXcenter, 0, 0])
+                cube([boxThickness, boxWidth + 2*boxThickness, boxHeight + boxThickness], center = true);
+            // FRONT 
+            translate([-(boxDeepth + boxThickness)/2 + boxXcenter, 0, 0])
+                difference() {
+                    // WHOLE FRONT
+                    cube([boxThickness, boxWidth + 2*boxThickness, boxHeight + boxThickness], center = true);
+                    translate([0,0,frontHoleOff]) {
+                        // MIDDLE WHOLE
+                        cube([boxThickness+1, frontHoleWidth, frontHoleHeight], center = true);
+                        // RIGHT AREA
+                        translate([0,-(boxWidth + 2*boxThickness)/2 + (boxWidth + 2*boxThickness - frontHoleWidth)/4,0]) 
+                            cube([boxThickness+1, (boxWidth + 2*boxThickness - frontHoleWidth)/2, frontHoleHeight], center = true); 
+                    }
+                }
+        } else {
+            union() {
+                translate([boxXcenter, -(boxWidth + boxThickness)/2, 0])
+                    cube([boxDeepth, boxThickness, boxHeight + boxThickness], center = true);
+                translate([-(boxDeepth + boxThickness)/2 + boxXcenter, 0, 0])
+                    translate([0,0,frontHoleOff])
+                        translate([0,-(boxWidth + 2*boxThickness)/2 + (boxWidth + 2*boxThickness - frontHoleWidth)/4,0]) 
+                            cube([boxThickness+1, (boxWidth + 2*boxThickness - frontHoleWidth)/2, frontHoleHeight], center = true);
+            }
+        }
+    }
 }
+
+
+difference() {
+    union() {
+        %box(left=true);
+        %box(left=false);
+        
+        // Split Flap
+        rotate(a=-11,v=[0,1,0]) {
+            rotate(a=90,v=[1,0,0]) 
+                translate([0,0,-(diskHeight+axisHeight/2)]) {
+                    // LOWERT PART
+                    disk(lower = true);
+
+                    // UPPER PART
+                    translate([0,0,diskHeight*2 + axisHeight])
+                        mirror([0,0,1]) {
+                            disk(lower = false);
+                        }
+                    
+
+                    plate(element = 0, angle = 25);
+                    plate(element = 1, angle = 25);
+                    plate(element = 2, angle = 25);
+                    plate(element = 3, angle = 25);
+                    plate(element = 4, angle = 25);
+                    plate(element = 5, angle = 168);
+                    plate(element = 6, angle = 121.5);
+                    plate(element = 7, angle = 68);
+                    plate(element = 8, angle = 42);
+                    plate(element = 9, angle = 25);
+                    
+                }
+        }
+    }
+    // AXIS
+    if(simpleAxisHole)
+        rotate(a=-11,v=[0,1,0])
+            rotate(a=90,v=[1,0,0]) 
+                translate([0, 0, -10])
+                    translate([0,0,-(diskHeight+axisHeight/2)])
+                        cylinder(h=diskHeight*2 + 20 + axisHeight, r=axisRadius);
+}
+
